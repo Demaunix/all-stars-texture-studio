@@ -103,6 +103,11 @@ round trips, mod ZIPs, conflict refusal, installation and removal. Native
 `compose.exe` independently verifies a generated mod's archive layout and hash.
 See [VALIDATION.md](VALIDATION.md) for the release's verified scope.
 
+GitHub Actions builds and checks every push to `main`. Pushing a `v*` tag or a
+`release/v*` branch builds and publishes the matching version with its executable
+and checksum; `v0.*` versions are marked as previews. Release notes are maintained
+in `RELEASE_NOTES.md`.
+
 ## License
 
 MIT. This is an unofficial community tool, not affiliated with SEGA, Sumo

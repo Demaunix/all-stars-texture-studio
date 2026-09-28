@@ -1,7 +1,7 @@
 name: Windows build and release
 on:
   push:
-    branches: [main]
+    branches: [main, 'release/v*']
     tags: ['v*']
   pull_request:
 permissions:
@@ -37,12 +37,13 @@ jobs:
             bin/AllStarsTextureStudio.exe
             bin/SHA256SUMS.txt
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/heads/release/v')
     needs: windows
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: AllStarsTextureStudio-Windows
@@ -51,9 +52,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_REF: ${{ github.ref_name }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
+          RELEASE_TAG="${RELEASE_REF#release/}"
+          preview=()
+          if [[ "$RELEASE_TAG" == v0.* ]]; then preview+=(--prerelease); fi
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release create "$RELEASE_TAG" --title "Texture Studio $RELEASE_TAG" --notes "Portable Windows texture editor. Download AllStarsTextureStudio.exe below; no manual game unpacking is needed. See the repository README and VALIDATION.md for usage, compatibility and tested scope."
+            gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --title "All-Stars Texture Studio $RELEASE_TAG" --notes-file RELEASE_NOTES.md "${preview[@]}"
           fi
           gh release upload "$RELEASE_TAG" release/AllStarsTextureStudio.exe release/SHA256SUMS.txt --clobber
