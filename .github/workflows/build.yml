@@ -1,0 +1,59 @@
+name: Windows build and release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build runtime components
+        shell: cmd
+        run: |
+          call native\build-loaders.cmd
+          if errorlevel 1 exit /b 1
+          call native\build.cmd
+          if errorlevel 1 exit /b 1
+      - name: Build and test editor
+        shell: pwsh
+        run: |
+          ./build.ps1
+          ./build.ps1 -Tests
+          ./bin/CoreTests.exe ./test-output/core
+          if ($LASTEXITCODE -ne 0) { throw 'Core tests failed' }
+          $fixture = [IO.File]::ReadAllText((Join-Path $PWD 'test-output/core/fixture-root.txt'))
+          ./bin/compose.exe $fixture (Join-Path $fixture 'staged') (Join-Path $fixture 'staged/plan.json')
+          if ($LASTEXITCODE -ne 0) { throw 'Native archive verification failed' }
+          $hash = (Get-FileHash ./bin/AllStarsTextureStudio.exe).Hash.ToLowerInvariant()
+          [IO.File]::WriteAllText((Join-Path $PWD 'bin/SHA256SUMS.txt'), "$hash  AllStarsTextureStudio.exe`n")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AllStarsTextureStudio-Windows
+          path: |
+            bin/AllStarsTextureStudio.exe
+            bin/SHA256SUMS.txt
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: AllStarsTextureStudio-Windows
+          path: release
+      - name: Publish downloadable executable
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --title "Texture Studio $RELEASE_TAG" --notes "Portable Windows texture editor. Download AllStarsTextureStudio.exe below; no manual game unpacking is needed. See the repository README and VALIDATION.md for usage, compatibility and tested scope."
+          fi
+          gh release upload "$RELEASE_TAG" release/AllStarsTextureStudio.exe release/SHA256SUMS.txt --clobber

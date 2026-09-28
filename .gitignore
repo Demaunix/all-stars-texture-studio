@@ -1,0 +1,15 @@
+bin/
+obj/
+artifacts/
+*.user
+*.suo
+*.pdb
+*.textureproject
+*.log
+test-output/
+runtime/*.dll
+WORKPLAN.md
+*.obj
+*.exp
+*.lib
+

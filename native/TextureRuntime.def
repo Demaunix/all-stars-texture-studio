@@ -1,0 +1,4 @@
+LIBRARY TextureRuntime
+EXPORTS
+    SsasrModInitialize
+    SsasrModRollback
